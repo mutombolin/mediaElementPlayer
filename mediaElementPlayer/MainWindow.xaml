@@ -12,8 +12,10 @@
             <Button Name="btnPlay" Content="Play" Click="btnPlay_Click" Width="50" Height="25" />
             <Button Name="btnStop" Content="Stop" Click="btnStop_Click" Width="50" Height="25" />
             <Button Name="btnMoveBackward" Content="Back" Click="btnMoveBackward_Click" Width="50" Height="25" />
-            <Button Name="btnMoveForward" Content="Forward" Click="btnMoveForward_Click" Width="50" Height="25" />
+            <Button Name="btnMoveForward" Content="Forward" Click="btnMoveForward_Click" Width="60" Height="25" />
             <Button Name="btnPause" Content="Pause" Click="btnPause_Click" Width="50" Height="25" />
+            <Button Name="btnNext" Content="Next" Click="btnNext_Click" Width="50" Height="25" />
+            <Button Name="btnPrev" Content="Prev" Click="btnPrev_Click" Width="50" Height="25" />
         </StackPanel>
     </Grid>
 </Window>
