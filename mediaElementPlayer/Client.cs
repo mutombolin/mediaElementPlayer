@@ -40,5 +40,7 @@ namespace mediaElementPlayer
                 System.Diagnostics.Debug.WriteLine(string.Format("Client: {0}", webRequest.Headers["thread"]));
             }
         }
+
+        // This is a test line.
     }
 }
