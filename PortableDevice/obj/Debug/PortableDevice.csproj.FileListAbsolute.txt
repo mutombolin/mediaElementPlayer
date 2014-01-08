@@ -1,0 +1,10 @@
+D:\Projects\vs2010\mediaElementPlayer\PortableDevice\bin\Debug\PortableDevice.dll
+D:\Projects\vs2010\mediaElementPlayer\PortableDevice\bin\Debug\PortableDevice.pdb
+D:\Projects\vs2010\mediaElementPlayer\PortableDevice\bin\Debug\Interop.PortableDeviceApiLib.dll
+D:\Projects\vs2010\mediaElementPlayer\PortableDevice\bin\Debug\Interop.PortableDeviceTypesLib.dll
+D:\Projects\vs2010\mediaElementPlayer\PortableDevice\obj\Debug\ResolveAssemblyReference.cache
+D:\Projects\vs2010\mediaElementPlayer\PortableDevice\obj\Debug\Interop.PortableDeviceApiLib.dll
+D:\Projects\vs2010\mediaElementPlayer\PortableDevice\obj\Debug\Interop.PortableDeviceTypesLib.dll
+D:\Projects\vs2010\mediaElementPlayer\PortableDevice\obj\Debug\PortableDevice.csproj.ResolveComReference.cache
+D:\Projects\vs2010\mediaElementPlayer\PortableDevice\obj\Debug\PortableDevice.dll
+D:\Projects\vs2010\mediaElementPlayer\PortableDevice\obj\Debug\PortableDevice.pdb
