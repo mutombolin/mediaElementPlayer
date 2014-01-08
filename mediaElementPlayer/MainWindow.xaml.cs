@@ -33,6 +33,10 @@ namespace mediaElementPlayer
         private Server _server;
         private int _curIndex;
 
+        private List<PortableDevice.PortableDeviceObject> _portableList;
+        private event EventHandler LoadedCompleted;
+        private PortableDevice.PortableDevice _device;
+
         public MainWindow()
         {
             InitializeComponent();
@@ -46,7 +50,10 @@ namespace mediaElementPlayer
             _playList.Add(@"D:\Temp\o1928.mp3");
             _playList.Add(@"D:\Temp\o115.mp3");
 
+            
+
             Loaded += new RoutedEventHandler(MainWindow_Loaded);
+            Closed += new EventHandler(MainWindow_Closed);
 
             _bufferingTimer = new System.Timers.Timer();
             _bufferingTimer.Interval = 300;
@@ -56,6 +63,14 @@ namespace mediaElementPlayer
 
             mediaElement1.BufferingStarted += new RoutedEventHandler(mediaElement1_BufferingStarted);
             mediaElement1.BufferingEnded += new RoutedEventHandler(mediaElement1_BufferingEnded);
+
+            LoadedCompleted += new EventHandler(MainWindow_LoadedCompleted);
+        }
+
+        void MainWindow_Closed(object sender, EventArgs e)
+        {
+            _server.Stop();
+            _server.Dispose();
         }
 
         void mediaElement1_BufferingEnded(object sender, RoutedEventArgs e)
@@ -85,6 +100,11 @@ namespace mediaElementPlayer
 //            mediaElement1.Source = new Uri(@"http://localhost:7896/", UriKind.Absolute);
 //            mediaElement1.Play();
 //            _bufferingTimer.Start();
+
+
+            Thread loadItems = new Thread(new ThreadStart(LoadPortableDevice));
+            loadItems.Name = "LoadItems";
+            loadItems.Start();
         }
 
         #region MediaElement Events
@@ -111,23 +131,36 @@ namespace mediaElementPlayer
 
         private void UpdateContent()
         {
+            mediaElement1.Stop();
+            mediaElement1.Source = null;
+
             if (_server.IsStarted)
                 _server.Stop();
 
-            if (_curIndex >= _playList.Count)
+            if (_curIndex >= _portableList.Count)
                 _curIndex = 0;
 
             if (_curIndex < 0)
-                _curIndex = _playList.Count - 1;
+                _curIndex = _portableList.Count - 1;
 
+            var item = _portableList[_curIndex] as PortableDevice.PortableDeviceFile;
+
+            MemoryStream ms = _device.GetMemoryStream(item);
+
+            ms.Position = 0;
+            _server.memoryStream = ms;
+/*
             string filename = _playList[_curIndex];
 
             if (filename != string.Empty)
                 _server.FileName = filename;
-
-            mediaElement1.Source = null;
+*/
+//            mediaElement1.Source = null;
             mediaElement1.Source = new Uri(@"http://localhost:7896/", UriKind.Absolute);
             mediaElement1.Play();
+
+            listBox1.SelectedIndex = _curIndex;
+            listBox1.ScrollIntoView(listBox1.SelectedItem);
         }
 
         private void IsPlaying(bool value)
@@ -140,15 +173,13 @@ namespace mediaElementPlayer
 
         private void btnPlay_Click(object sender, RoutedEventArgs e)
         {
-            _curIndex = 0;
-            UpdateContent();
-//            mediaElement1.Source = new Uri(@"http://localhost:7896/", UriKind.Absolute);
-//            mediaElement1.Play();
+            mediaElement1.Play();
         }
 
         private void btnStop_Click(object sender, RoutedEventArgs e)
         {
             mediaElement1.Stop();
+            mediaElement1.Source = null;
             _server.Stop();
         }
 
@@ -169,19 +200,81 @@ namespace mediaElementPlayer
 
         private void btnNext_Click(object sender, RoutedEventArgs e)
         {
-            mediaElement1.Stop();
-            mediaElement1.Source = null;
-
             _curIndex++;
             UpdateContent();
         }
 
         private void btnPrev_Click(object sender, RoutedEventArgs e)
         {
-            mediaElement1.Stop();
-            mediaElement1.Source = null;
             _curIndex--;
             UpdateContent();
+        }
+
+        private void listBox1_MouseDoubleClick(object sender, MouseButtonEventArgs e)
+        {
+            _curIndex = listBox1.SelectedIndex;
+            UpdateContent();
+        }
+
+        public void DisplayObject(PortableDevice.PortableDeviceObject portableDeviceObject)
+        {
+            if (portableDeviceObject is PortableDevice.PortableDeviceFolder)
+                DisplayFolderContents((PortableDevice.PortableDeviceFolder)portableDeviceObject);
+        }
+
+        public void DisplayFolderContents(PortableDevice.PortableDeviceFolder folder)
+        {
+            foreach (var item in folder.Files)
+            {
+                if (item is PortableDevice.PortableDeviceFolder)
+                    DisplayFolderContents((PortableDevice.PortableDeviceFolder)item);
+                else if (item is PortableDevice.PortableDeviceFile)
+                {
+                    if (item.Name.ToLower().Contains("mp3"))
+                        _portableList.Add(item as PortableDevice.PortableDeviceObject);
+                    if (item.Name.ToLower().Contains("mp4"))
+                        _portableList.Add(item as PortableDevice.PortableDeviceObject);                       
+                }
+            }
+        }
+
+        private void LoadPortableDevice()
+        {
+            var devices = new PortableDevice.PortableDeviceCollection();
+            devices.Refresh();
+
+            if (devices.Count <= 0)
+                return;
+
+            _device = devices.First();
+            _device.Connect();
+
+            _portableList = new List<PortableDevice.PortableDeviceObject>();
+
+            var folder = _device.GetContents();
+
+            foreach (var item in folder.Files)
+            {
+                DisplayObject(item);
+            }
+
+            LoadedCompleted(this, new EventArgs());
+        }
+
+
+        void MainWindow_LoadedCompleted(object sender, EventArgs e)
+        {
+            System.Diagnostics.Debug.WriteLine("LoadedCompleted");
+
+            Dispatcher.BeginInvoke(new EventHandler(SAFE_MainWindow_LoadedCompleted), sender, e);
+        }
+
+        void SAFE_MainWindow_LoadedCompleted(object sender, EventArgs e)
+        {
+            foreach (var item in _portableList)
+            {
+                listBox1.Items.Add(item.Name.ToString());
+            }
         }
     }
 }

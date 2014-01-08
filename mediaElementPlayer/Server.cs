@@ -24,6 +24,8 @@ namespace mediaElementPlayer
 
         private ManualResetEvent resetEvent;
 
+        private MemoryStream _ms;
+
         public Server()
         {
             _listener = new HttpListener();
@@ -36,8 +38,15 @@ namespace mediaElementPlayer
         {
             while (_listener.IsListening)
             {
-                var context = _listener.BeginGetContext(new AsyncCallback(ListenerCallback), _listener);
-                context.AsyncWaitHandle.WaitOne();
+                try
+                {
+                    var context = _listener.BeginGetContext(new AsyncCallback(ListenerCallback), _listener);
+                    context.AsyncWaitHandle.WaitOne();
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine(string.Format("RequestThread - Ex = {0}", ex));
+                }
             }
         }
 
@@ -54,7 +63,7 @@ namespace mediaElementPlayer
 
             var listener = ar.AsyncState as HttpListener;
 
-            System.Diagnostics.Debug.WriteLine(string.Format("ListenerCallback numberOfRequest = {0}", _numberOfRequest));
+//            System.Diagnostics.Debug.WriteLine(string.Format("ListenerCallback numberOfRequest = {0}", _numberOfRequest));
 
             _isStarted = true;
 
@@ -80,11 +89,22 @@ namespace mediaElementPlayer
                 _isStopping = true;
             }
 
-            resetEvent.WaitOne();
+            resetEvent.WaitOne(1000);
             _isStopping = false;
-//            _listener.Stop();
             System.Diagnostics.Debug.WriteLine("Listener Stopped");
             _isStarted = false;
+        }
+
+        public void Dispose()
+        {
+            while (_requestThread.IsAlive)
+            {
+                _listener.Stop();
+                Thread.Sleep(10);
+            }
+
+            _listener.Close();
+            _listener.Abort();
         }
 
         public void Start()
@@ -98,38 +118,7 @@ namespace mediaElementPlayer
 
             _numberOfRequest = 0;        
         }
-/*
-        public void Start()
-        {
-            if (!HttpListener.IsSupported)
-                System.Diagnostics.Debug.WriteLine("Not supported");
 
-            _listener.Start();
-            _listener.IgnoreWriteExceptions = true;
-
-            _isStarted = true;
-
-
-            System.Threading.Tasks.Task.Factory.StartNew(() =>
-                {
-                   while (true)
-                    {
-                        HttpListenerContext context = _listener.GetContext();
-                        System.Threading.Tasks.Task.Factory.StartNew((ctx) =>
-                        {
-                            _isStop = false;
-                            WriteFile((HttpListenerContext)ctx);
-                        }, context, System.Threading.Tasks.TaskCreationOptions.LongRunning);
-                    }
-                }, System.Threading.Tasks.TaskCreationOptions.LongRunning);            
-        }
-
-        public void Stop()
-        {
-            _isStop = true;
-            _filename = string.Empty;
-        }
-*/
         public bool IsStarted
         {
             get
@@ -140,35 +129,42 @@ namespace mediaElementPlayer
 
         void WriteFile(HttpListenerContext ctx)
         {
-            if (FileName == string.Empty)
-                return;
-
             var response = ctx.Response;
 
-            using (FileStream fs = File.OpenRead(FileName))
+            if ((_ms == null) || (!_ms.CanRead))
+                return;
+
+            MemoryStream newMs = new MemoryStream(_ms.GetBuffer());
+            newMs.Position = 0;
+
+            using (newMs)
             {
-                System.Diagnostics.Debug.WriteLine(string.Format("Length = {0}", fs.Length));
-                response.ContentLength64 = fs.Length;
-                //                response.SendChunked = false;
+                System.Diagnostics.Debug.WriteLine(string.Format("Length = {0}", newMs.Length));
+                response.ContentLength64 = newMs.Length;
                 response.SendChunked = true;
                 response.ContentType = System.Net.Mime.MediaTypeNames.Application.Octet;
-                response.AddHeader("Content-disposition", "attachment; filename=miss A Bad Girl, Good Girl.mp4");
+                response.AddHeader("Content-disposition", "attachment; filename=1.mp4");
 
-//                byte[] buffer = new byte[64 * 1024];
-                byte[] buffer = new byte[1 * 1024 * 1024];
+                byte[] buffer = new byte[64 * 1024];
                 int read;
                 int Count = 0;
+//                long ticks = 0;
+//                long oldTicks = 0;
+
+                newMs.Position = 0;
 
                 using (BinaryWriter bw = new BinaryWriter(response.OutputStream))
                 {
-                    while ((read = fs.Read(buffer, 0, buffer.Length)) > 0)
+                    while ((read = newMs.Read(buffer, 0, buffer.Length)) > 0)
                     {
                         try
                         {
                             bw.Write(buffer, 0, read);
                             bw.Flush();
                             Count += read;
-//                            System.Diagnostics.Debug.WriteLine(string.Format("total bytes = {0}", Count++));
+//                            ticks = DateTime.Now.Ticks;
+//                            System.Diagnostics.Debug.WriteLine(string.Format("Ticks = {0}", ticks - oldTicks));
+//                            oldTicks = ticks;
                         }
                         catch (Exception ex)
                         {
@@ -180,10 +176,15 @@ namespace mediaElementPlayer
                             break;
                         }
                     }
-
-                    bw.Close();
+                    try
+                    {
+                        bw.Close();
+                    }
+                    catch (Exception ex)
+                    {
+                        System.Diagnostics.Debug.WriteLine(string.Format("Exception ex = {0}", ex));
+                    }
                 }
-
                 System.Diagnostics.Debug.WriteLine(string.Format("Count = {0}", Count));
 
                 response.StatusCode = (int)HttpStatusCode.OK;
@@ -202,6 +203,18 @@ namespace mediaElementPlayer
             get
             {
                 return _filename;
+            }
+        }
+
+        public MemoryStream memoryStream
+        {
+            set
+            {
+                _ms = value;
+            }
+            get
+            {
+                return _ms;
             }
         }
     }
