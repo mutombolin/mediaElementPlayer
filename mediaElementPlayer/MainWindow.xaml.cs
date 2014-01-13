@@ -18,6 +18,8 @@ using System.IO.Pipes;
 //using System.ServiceModel;
 using System.Threading;
 
+using System.Runtime.InteropServices.ComTypes;
+
 namespace mediaElementPlayer
 {
     /// <summary>
@@ -30,7 +32,7 @@ namespace mediaElementPlayer
         private string _filename = @"D:\Temp\o115.mp3";
         private System.Timers.Timer _bufferingTimer;
         private List<string> _playList;
-        private Server _server;
+        private PortableDevice.Server _server;
         private int _curIndex;
 
         private List<PortableDevice.PortableDeviceObject> _portableList;
@@ -95,8 +97,10 @@ namespace mediaElementPlayer
 
         void MainWindow_Loaded(object sender, RoutedEventArgs e)
         {
-            _server = new Server();
+            _server = new PortableDevice.Server();
             Start();
+
+            mediaElement1.Volume = 1;
 //            mediaElement1.Source = new Uri(@"http://localhost:7896/", UriKind.Absolute);
 //            mediaElement1.Play();
 //            _bufferingTimer.Start();
@@ -110,10 +114,15 @@ namespace mediaElementPlayer
         #region MediaElement Events
         void mediaElement1_MediaFailed(object sender, ExceptionRoutedEventArgs e)
         {
+            mediaElement1.Stop();
+            mediaElement1.Source = null;
+            _server.Stop();
         }
 
         void mediaElement1_MediaEnded(object sender, RoutedEventArgs e)
         {
+            _curIndex++;
+            UpdateContent();
         }
         #endregion
 
@@ -145,10 +154,12 @@ namespace mediaElementPlayer
 
             var item = _portableList[_curIndex] as PortableDevice.PortableDeviceFile;
 
-            MemoryStream ms = _device.GetMemoryStream(item);
+//            MemoryStream ms = _device.GetMemoryStream(item);
 
-            ms.Position = 0;
-            _server.memoryStream = ms;
+//            ms.Position = 0;
+//            _server.memoryStream = ms;
+            _server.FileObject = item;
+            _server.Device = _device;
 /*
             string filename = _playList[_curIndex];
 
@@ -245,6 +256,13 @@ namespace mediaElementPlayer
 
             if (devices.Count <= 0)
                 return;
+
+            foreach (PortableDevice.PortableDevice device in devices)
+            {
+                device.Connect();
+                System.Diagnostics.Debug.WriteLine(string.Format("name = {0}", device.FriendlyName));
+                device.Disconnect();
+            }
 
             _device = devices.First();
             _device.Connect();
